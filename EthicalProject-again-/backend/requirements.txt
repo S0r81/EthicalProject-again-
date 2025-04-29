@@ -1,0 +1,16 @@
+# File: backend/requirements.txt
+
+# Mininet dependencies
+mininet
+
+# WebSocket server
+websockets
+
+# REST API server
+flask
+
+# Optional controller if needed (e.g., Ryu)
+ryu
+
+# Other helpful libraries
+asyncio
