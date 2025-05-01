@@ -16,7 +16,7 @@ class DoSDetector(app_manager.RyuApp):
         self.mac_to_port = {}
         self.ip_packet_count = defaultdict(int)  # IP-based packet counter
         self.last_check = time.time()
-        self.threshold = 100  # packets/sec threshold for DoS detection
+        self.threshold = 5  # packets/sec threshold for DoS detection
         self.migrated = False  # to prevent multiple migrations
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -91,19 +91,36 @@ class DoSDetector(app_manager.RyuApp):
     def migrate_host(self):
         self.logger.info("🚀 Initiating automatic migration of h3...")
 
-        # 1. Bring down old link
-        os.system("mnexec -a $(pgrep -f 'bash.*mn') sh -c \"echo 'py net.configLinkStatus(\\\"h3\\\", \\\"s2\\\", \\\"down\\\")' > /tmp/mncmd\"")
+        cmds = [
+    'py net.configLinkStatus(\\"h3\\", \\"s2\\", \\"down\\")',
+    'py net.addLink(h3, s1)',
+    'py h3.cmd(\\"ifconfig h3-eth1 10.0.0.3/8 up\\")',
+    'py h3.cmd(\\"route add default dev h3-eth1\\")',
+    'py h3.cmd(\\"ip link delete h3-eth0\\")',
+    'py s2.detach(\\"s2-eth1\\")',
+    'py net.delLink(next(link for link in net.links if \\"s2-eth1\\" in str(link)))',
+    'py os.system(\\"/usr/bin/ovs-ofctl del-flows s1 -O OpenFlow13\\")',
+    'py os.system(\\"/usr/bin/ovs-ofctl del-flows s2 -O OpenFlow13\\")'
+    ]
 
-        # 2. Add new link
-        os.system("mnexec -a $(pgrep -f 'bash.*mn') sh -c \"echo 'py net.addLink(h3, s1)' >> /tmp/mncmd\"")
 
-    # 3. Bring up new interface
-        os.system("mnexec -a $(pgrep -f 'bash.*mn') sh -c \"echo 'h3 ifconfig h3-eth1 up' >> /tmp/mncmd\"")
 
-    # 4. Clear old flows
-        os.system("mnexec -a $(pgrep -f 'bash.*mn') sh -c \"echo 'sh ovs-ofctl del-flows s1 -O OpenFlow13' >> /tmp/mncmd\"")
-        os.system("mnexec -a $(pgrep -f 'bash.*mn') sh -c \"echo 'sh ovs-ofctl del-flows s2 -O OpenFlow13' >> /tmp/mncmd\"")
+        for i, cmd in enumerate(cmds):
+            redirect = '>' if i == 0 else '>>'
+            os.system(f"mnexec -a $(pgrep -f 'bash.*mn') sh -c \"echo '{cmd}' {redirect} /tmp/mncmd\"")
 
-        self.logger.info("✅ Host h3 migration completed.")
+        time.sleep(2)  # Let Mininet apply changes
+
+        verify = os.popen("ovs-vsctl list-ports s1").read()
+
+        if "s1-eth3" in verify:
+            self.logger.info("✅ Host h3 migration verified: h3-eth1 is attached to s1.")
+        else:
+            self.logger.error("❌ Host h3 migration failed or incomplete.")
+            self.logger.error(verify)
+
+
+
+
 
 
