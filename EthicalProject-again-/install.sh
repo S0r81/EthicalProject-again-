@@ -4,13 +4,21 @@ echo "[*] Updating system packages..."
 sudo apt update
 sudo apt upgrade -y
 
-# Install Deadsnakes PPA if Python 3.8 not found
-if ! python3.8 --version &>/dev/null; then
-    echo "[*] Python 3.8 not found. Installing via Deadsnakes PPA..."
-    sudo apt install -y software-properties-common
-    sudo add-apt-repository ppa:deadsnakes/ppa -y
-    sudo apt update
-    sudo apt install -y python3.8 python3.8-venv python3.8-dev python3-pip
+# Install build dependencies for Python 3.8
+echo "[*] Installing dependencies for building Python 3.8 from source..."
+sudo apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev \
+    libnss3-dev libssl-dev libreadline-dev libffi-dev libbz2-dev curl wget
+
+# Check if Python 3.8 is already installed
+if ! command -v python3.8 &>/dev/null; then
+    echo "[*] Python 3.8 not found. Installing from source..."
+    cd /usr/src
+    sudo wget https://www.python.org/ftp/python/3.8.18/Python-3.8.18.tgz
+    sudo tar -xf Python-3.8.18.tgz
+    cd Python-3.8.18
+    sudo ./configure --enable-optimizations
+    sudo make -j$(nproc)
+    sudo make altinstall
 else
     echo "[*] Python 3.8 already installed."
 fi
@@ -48,4 +56,3 @@ pip install netaddr msgpack oslo.config ovs routes tinyrpc
 
 echo "[✅] Installation complete!"
 echo "You can now run 'bash run.sh' to start the project."
-
