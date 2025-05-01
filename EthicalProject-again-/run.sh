@@ -10,7 +10,7 @@ if ! command -v gnome-terminal &> /dev/null; then
 fi
 
 echo "[*] Starting Ryu controller in a new window..."
-gnome-terminal -- bash -c "sudo env 'PATH=$PATH' python3.8 -m ryu.cmd.manager --ofp-tcp-listen-port 6633 backend/dos_detector.py; exec bash"
+gnome-terminal -- bash -c "sudo env 'PATH=$PATH' /usr/bin/python3.8 -m ryu.cmd.manager --ofp-tcp-listen-port 6633 backend/dos_detector.py; exec bash"
 
 sleep 5  # Give Ryu time to start
 
