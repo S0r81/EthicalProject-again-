@@ -1,16 +1,27 @@
-#!/bin/bash
+##!/bin/bash
 
 echo "[*] Updating system packages..."
 sudo apt update
 sudo apt upgrade -y
 
-# Install Deadsnakes PPA if Python 3.8 not found
+# Check if Python 3.8 is installed
 if ! python3.8 --version &>/dev/null; then
-    echo "[*] Python 3.8 not found. Installing via Deadsnakes PPA..."
-    sudo apt install -y software-properties-common
-    sudo add-apt-repository ppa:deadsnakes/ppa -y
-    sudo apt update
-    sudo apt install -y python3.8 python3.8-venv python3.8-dev python3-pip
+    echo "[*] Python 3.8 not found. Installing from source..."
+    
+    # Install build dependencies
+    sudo apt install -y wget build-essential libssl-dev zlib1g-dev \
+        libncurses5-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
+        libgdbm-dev libdb5.3-dev libbz2-dev libexpat1-dev liblzma-dev \
+        tk-dev uuid-dev libffi-dev
+
+    # Download and build Python 3.8
+    cd /usr/src
+    sudo wget https://www.python.org/ftp/python/3.8.18/Python-3.8.18.tgz
+    sudo tar xvf Python-3.8.18.tgz
+    cd Python-3.8.18
+    sudo ./configure --enable-optimizations
+    sudo make -j$(nproc)
+    sudo make altinstall  # Avoids overwriting system python
 else
     echo "[*] Python 3.8 already installed."
 fi
@@ -21,29 +32,29 @@ sudo apt install -y mininet openvswitch-switch openvswitch-common
 
 # Set up Python virtual environment
 echo "[*] Creating Python 3.8 virtual environment..."
-python3.8 -m venv venv38
+/usr/local/bin/python3.8 -m venv venv38
 
 echo "[*] Activating Python virtual environment..."
 source venv38/bin/activate
 
-# Install pip upgrade
+# Upgrade pip
 echo "[*] Upgrading pip..."
 pip install --upgrade pip
 
-# Manually download and install Ryu 4.34
-echo "[*] Downloading and manually installing Ryu 4.34..."
-cd ~/Desktop
+# Download and install Ryu 4.34
+echo "[*] Downloading and installing Ryu 4.34..."
+cd ~/Desktop || mkdir -p ~/Desktop && cd ~/Desktop
 wget https://github.com/faucetsdn/ryu/archive/refs/tags/v4.34.tar.gz
 tar -xvf v4.34.tar.gz
 cd ryu-4.34
-python3.8 setup.py install
+python setup.py install
 
-# Install specific compatible Eventlet version
+# Install specific Eventlet version
 echo "[*] Installing Eventlet 0.30.2..."
 pip install eventlet==0.30.2
 
-# Install other requirements
-echo "[*] Installing remaining Python libraries..."
+# Install additional requirements
+echo "[*] Installing required Python libraries..."
 pip install netaddr msgpack oslo.config ovs routes tinyrpc
 
 echo "[✅] Installation complete!"
